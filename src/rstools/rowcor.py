@@ -1,5 +1,6 @@
 import jax
 import jax.numpy as jnp
+from .stats import rmean
 
 @jax.jit(static_argnames=('nout', 'top_only', 'sigrej'))
 def rowcor(D, nout=4, top_only=False, sigrej=4.0):

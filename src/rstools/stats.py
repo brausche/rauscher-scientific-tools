@@ -86,7 +86,7 @@ def mad(x, key=None, axis=None, keepdims=False, scale='normal', max_samples=1000
 
 
 
-    @jax.jit(static_argnames=('axis', 'keepdims', 'max_samples', 'return_std'))
+@jax.jit(static_argnames=('axis', 'keepdims', 'max_samples', 'return_std'))
 def rmean(x, n_sigma=3.0, key=None, axis=None, keepdims=False, max_samples=10000, return_std=False):
     """
     Compute a robust, sigma-clipped mean using MAD for outlier rejection.
