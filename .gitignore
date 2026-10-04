@@ -218,3 +218,12 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Other stuff Bernard J. Rauscher likes to exclude
+__pycache__/
+*.h5
+*.fits
+*.asdf
+*.pyc
+.ipynb_checkpoints/
+.DS_Store

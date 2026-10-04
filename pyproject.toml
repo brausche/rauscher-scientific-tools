@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rauscher-scientific-tools"
+dynamic = ["version"] # Don't change. Edit __init__.py.
+description = "High-performance astronomical detector processing tools by Rauscher Scientific LLC"
+readme = "README.md"
+requires-python = ">=3.9"
+authors = [
+    { name = "Bernard J. Rauscher", email = "bernard@rauscherscientific.com" }
+]
+license = { text = "MIT" }
+dependencies = [
+    "jax>=0.4.0",
+    "jaxlib>=0.4.0",
+    "numpy>=1.22.0",
+]
+
+[tool.setuptools.dynamic]
+version = {attr = "rstools.__version__"}
+
+[tool.setuptools.packages.find]
+where = ["src"]

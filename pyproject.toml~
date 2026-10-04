@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rauscher-scientific-tools"
+version = "1.0.0"
+description = "High-performance astronomical detector processing tools by Rauscher Scientific LLC"
+readme = "README.md"
+requires-python = ">=3.9"
+authors = [
+    { name = "Bernard J. Rauscher", email = "bernard@rauscherscientific.com" }
+]
+license = { text = "MIT" }
+dependencies = [
+    "jax>=0.4.0",
+    "jaxlib>=0.4.0",
+    "numpy>=1.22.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
