@@ -1,5 +1,30 @@
+# Legendre polynomial fitting and modeling operators for up-the-ramp data.
+# NumPy serves as the fallback for CuPy, but NumPy always remains pure NumPy.
+
 import numpy as np
-import jax.numpy as jnp
+
+try:
+    import cupy as cp
+    cp.cuda.runtime.getDeviceCount()
+    HAS_GPU = True
+except Exception:
+    cp = None
+    HAS_GPU = False
+
+def get_backend(*args):
+    """Returns cupy if any arg is on GPU, otherwise numpy."""
+    if HAS_GPU:
+        return cp.get_array_module(*args)
+    return np
+
+def to_cpu(x):
+    """Always returns a numpy array on CPU."""
+    return x.get() if (HAS_GPU and isinstance(x, cp.ndarray)) else np.asarray(x)
+
+def to_gpu(x):
+    """Always returns a cupy array on GPU (falls back to numpy if no GPU)."""
+    return cp.asarray(x) if HAS_GPU else np.asarray(x)
+
 
 class Legendre:
     """
@@ -13,6 +38,9 @@ class Legendre:
         Polynomial degree of the fit. Default is 1.
     drop_first : int, optional
         Number of initial samples to exclude from fitting. Default is 1.
+    use_gpu : bool, optional
+        If True and a GPU is available, place matrices in GPU VRAM (CuPy).
+        If False, retain them in host system RAM (NumPy). Default is True.
 
     Attributes
     ----------
@@ -39,7 +67,7 @@ class Legendre:
        no data is returned. For e.g. JWST NIRCam files having 10 up-the-ramp frames,
        set nz = 11 and leave drop_first = 1 (the default).
     """
-    def __init__(self, nz: int, deg: int = 1, drop_first: int = 1):
+    def __init__(self, nz: int, deg: int = 1, drop_first: int = 1, use_gpu: bool = True):
 
         # Save params
         self.nz = nz
@@ -50,40 +78,51 @@ class Legendre:
         if drop_first >= nz:
             raise ValueError(f"drop_first ({drop_first}) must be less than total samples nz ({nz}).")
 
-        # Map the full sequence of nz samples (including dropped samples) onto the closed interval [-1.0, +1.0]
+        # Map full sequence onto [-1.0, +1.0] using pure NumPy float64 for precision
         full_x = np.linspace(-1.0, 1.0, nz, dtype=np.float64)
 
         # Slice off dropped frames, retaining domain coordinates for active samples
-        x = full_x[drop_first:]
+        x_cpu = full_x[drop_first:]
 
-        # Evaluate Legendre polynomials over active sample locations
-        B_cpu = np.polynomial.legendre.legvander(x, deg)
+        # Evaluate Legendre polynomials on CPU (legvander is a NumPy function)
+        B_cpu = np.polynomial.legendre.legvander(x_cpu, deg)
 
         # The Moore-Penrose pseudoinverse does fitting
         F_cpu = np.linalg.pinv(B_cpu)
 
         # Also make a matrix that builds models
-        M_cpu = np.matmul(B_cpu, F_cpu)
+        M_cpu = B_cpu @ F_cpu
 
-        # Convert everything to JAX, 32-bit
-        self.x = x
-        self.B = jnp.array(B_cpu, dtype=jnp.float32) # Basis matrix
-        self.F = jnp.array(F_cpu, dtype=jnp.float32) # Fitting matrix
-        self.M = jnp.array(M_cpu, dtype=jnp.float32) # Modeling matrix
+        # Cast to float32 for pipeline execution
+        x_cpu = x_cpu.astype(np.float32)
+        B_cpu = B_cpu.astype(np.float32)
+        F_cpu = F_cpu.astype(np.float32)
+        M_cpu = M_cpu.astype(np.float32)
 
-    # ------------------------------------------------------------------
-    # JAX PyTree Registration Hooks
-    # ------------------------------------------------------------------
-    def tree_flatten(self):
-        # Dynamic JAX arrays traced on CPU/GPU
-        children = (self.x, self.B, self.F, self.M)
-        # Static metadata (determines shape/structure)
-        aux_data = (self.nz, self.deg, self.drop_first)
-        return children, aux_data
+        # Store arrays on requested target device (GPU or CPU)
+        target = to_gpu if use_gpu else to_cpu
+        self.x = target(x_cpu)
+        self.B = target(B_cpu)
+        self.F = target(F_cpu)
+        self.M = target(M_cpu)
 
-    @classmethod
-    def tree_unflatten(cls, aux_data, children):
-        obj = object.__new__(cls)
-        obj.x, obj.B, obj.F, obj.M = children
-        obj.nz, obj.deg, obj.drop_first = aux_data
-        return obj
+    def to_cpu(self):
+        """Move all operator matrices to host system RAM (NumPy) in-place."""
+        self.x = to_cpu(self.x)
+        self.B = to_cpu(self.B)
+        self.F = to_cpu(self.F)
+        self.M = to_cpu(self.M)
+        return self
+
+    def to_gpu(self):
+        """Move all operator matrices to GPU VRAM (CuPy) in-place."""
+        self.x = to_gpu(self.x)
+        self.B = to_gpu(self.B)
+        self.F = to_gpu(self.F)
+        self.M = to_gpu(self.M)
+        return self
+
+    @property
+    def backend(self):
+        """Returns the module (cupy or numpy) where the matrices currently reside."""
+        return get_backend(self.B)
