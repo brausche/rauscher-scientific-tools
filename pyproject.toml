@@ -13,8 +13,7 @@ authors = [
 ]
 license = { text = "MIT" }
 dependencies = [
-    "jax>=0.4.0",
-    "jaxlib>=0.4.0",
+    "cupy>=14.0.1",
     "numpy>=1.22.0",
 ]
 

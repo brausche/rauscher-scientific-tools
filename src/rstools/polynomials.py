@@ -1,29 +1,6 @@
-# Legendre polynomial fitting and modeling operators for up-the-ramp data.
-# NumPy serves as the fallback for CuPy, but NumPy always remains pure NumPy.
-
 import numpy as np
 
-try:
-    import cupy as cp
-    cp.cuda.runtime.getDeviceCount()
-    HAS_GPU = True
-except Exception:
-    cp = None
-    HAS_GPU = False
-
-def get_backend(*args):
-    """Returns cupy if any arg is on GPU, otherwise numpy."""
-    if HAS_GPU:
-        return cp.get_array_module(*args)
-    return np
-
-def to_cpu(x):
-    """Always returns a numpy array on CPU."""
-    return x.get() if (HAS_GPU and isinstance(x, cp.ndarray)) else np.asarray(x)
-
-def to_gpu(x):
-    """Always returns a cupy array on GPU (falls back to numpy if no GPU)."""
-    return cp.asarray(x) if HAS_GPU else np.asarray(x)
+from ._backend import get_backend, to_cpu, to_gpu
 
 
 class Legendre:
@@ -50,13 +27,13 @@ class Legendre:
         Polynomial degree.
     drop_first : int
         Initial samples dropped.
-    x : Array
+    x : ndarray
         Normalized domain coordinates for active samples in range [-1, +1].
-    B : Array
+    B : ndarray
         Basis matrix mapping polynomial coefficients to sample values.
-    F : Array
+    F : ndarray
         Fitting matrix (pseudoinverse of B) mapping sample values to coefficients.
-    M : Array
+    M : ndarray
         Modeling matrix (hat matrix, B @ F) mapping sample values directly to model values.
 
     Notes
@@ -67,8 +44,8 @@ class Legendre:
        no data is returned. For e.g. JWST NIRCam files having 10 up-the-ramp frames,
        set nz = 11 and leave drop_first = 1 (the default).
     """
-    def __init__(self, nz: int, deg: int = 1, drop_first: int = 1, use_gpu: bool = True):
 
+    def __init__(self, nz: int, deg: int = 1, drop_first: int = 1, use_gpu: bool = True):
         # Save params
         self.nz = nz
         self.deg = deg
@@ -126,3 +103,6 @@ class Legendre:
     def backend(self):
         """Returns the module (cupy or numpy) where the matrices currently reside."""
         return get_backend(self.B)
+
+
+__all__ = ["Legendre"]
