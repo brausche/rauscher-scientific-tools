@@ -2,7 +2,7 @@ from ._backend import get_backend
 from .stats import rmean
 
 
-def rowcor(D, nout=4, top_only=False, sigrej=4.0):
+def rowcor(D, nout=4, top_only=False, sigrej=4.0, return_R=False):
     """
     Perform row-by-row reference correction on 3D ramp data.
     This is the most basic form of HxRG reference correction.
@@ -20,11 +20,18 @@ def rowcor(D, nout=4, top_only=False, sigrej=4.0):
     sigrej : float, optional
         Sigma threshold for outlier rejection in reference row averaging. 
         Default is 4.0.
+    return_R : bool, optional
+        If True, also returns the subtracted reference correction profile ``R``.
+        Default is False.
 
     Returns
     -------
     D_corrected : ndarray
         Reference-corrected 3D data array with shape (nz, ny, nx).
+    R : ndarray, optional
+        Subtracted reference correction profile (returned only when ``return_R=True``).
+        Shape is ``(nz, ny, nout)`` when ``top_only=False``, or ``(nz, 1, nout)``
+        when ``top_only=True``.
 
     Notes
     -----
@@ -55,5 +62,8 @@ def rowcor(D, nout=4, top_only=False, sigrej=4.0):
 
     # 3. Apply reference correction
     D_corrected = (D.reshape(nz, ny, nout, nx_per_out) - R).reshape(nz, ny, nx)
+
+    if return_R:
+        return D_corrected, R
 
     return D_corrected
